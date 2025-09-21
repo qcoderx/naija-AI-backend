@@ -3,14 +3,13 @@ import io
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from google import genai
-from spitch import Spitch
+import google.generativeai as genai
+from spitch import Spitch # Assuming 'spitch' is a valid, installed library.
 
 # Initialize FastAPI app
 app = FastAPI(title="Naija AI Assistant API", version="1.0.0")
 
 # --- Configuration ---
-# Load API keys from environment variables
 spitch_api_key = os.getenv("SPITCH_API_KEY")
 gemini_api_key = os.getenv("GEMINI_API_KEY")
 
@@ -24,21 +23,27 @@ try:
     spitch_client = Spitch(api_key=spitch_api_key)
     genai.configure(api_key=gemini_api_key)
 except Exception as e:
-    raise RuntimeError(f"Failed to initialize API clients: {e}")
+    raise RuntimeError(f"Failed to initialize API clients. Error: {e}")
 
 # --- Pydantic Models ---
 class TextToSpeechRequest(BaseModel):
     text: str
-    language: str = "pcm"
+    language: str = "yo-NG"
     voice: str = "femi"
 
+# REVERTED: The user must now specify the language in the chat request again.
 class ChatRequest(BaseModel):
     text: str
-    language: str = "pcm"
+    language: str = "yo-NG" # Example: Yoruba
 
 # --- API Endpoints ---
 @app.post("/speech-to-text/", summary="Transcribe Audio to Text")
-async def speech_to_text(file: UploadFile = File(...), language: str = "pcm"):
+async def speech_to_text(file: UploadFile = File(...), language: str = "yo-NG"):
+    """
+    Transcribes audio to text.
+    - **file**: The audio file to transcribe.
+    - **language**: The language code of the audio (e.g., 'yo-NG', 'ig-NG', 'ha-NG').
+    """
     if not file.content_type.startswith("audio/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload an audio file.")
 
@@ -47,10 +52,14 @@ async def speech_to_text(file: UploadFile = File(...), language: str = "pcm"):
         response = spitch_client.speech.transcribe(content=content, language=language)
         return {"text": response.text}
     except Exception as e:
+        print(f"Spitch STT Error: {e}")
         raise HTTPException(status_code=500, detail=f"Spitch API error: {e}")
 
 @app.post("/text-to-speech/", summary="Convert Text to Speech")
 async def text_to_speech(request: TextToSpeechRequest):
+    """
+    Converts text to spoken audio.
+    """
     try:
         response = spitch_client.speech.generate(
             text=request.text,
@@ -59,30 +68,51 @@ async def text_to_speech(request: TextToSpeechRequest):
         )
         return StreamingResponse(io.BytesIO(response.read()), media_type="audio/wav")
     except Exception as e:
+        print(f"Spitch TTS Error: {e}")
         raise HTTPException(status_code=500, detail=f"Spitch API error: {e}")
 
 @app.post("/chat/", summary="Chat with the AI Assistant")
 async def chat(request: ChatRequest):
+    """
+    Receives a text prompt, gets a response from Gemini in a specified Nigerian
+    language, and converts that response to speech using Spitch.
+    """
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
+
+        # REVERTED: The prompt now uses the language specified in the request.
         prompt = (
-            f"You are a helpful and friendly assistant that speaks Nigerian languages. "
-            f"Please respond in {request.language} to the following message: '{request.text}'"
+            "You are a helpful and friendly Naija AI assistant. "
+            f"Please respond in the {request.language} language to the following message: '{request.text}'"
         )
+
         gemini_response = await model.generate_content_async(prompt)
         ai_text = gemini_response.text
 
+        # NEW: Select the appropriate voice based on the requested language.
+        voice_map = {
+            "ha-NG": "hasan",
+            "ig-NG": "ngozi",
+        }
+        # Default to 'femi' if the language is not Hausa or Igbo.
+        selected_voice = voice_map.get(request.language, "femi")
+
+        # Use the generated text to create speech with the selected voice.
         tts_response = spitch_client.speech.generate(
             text=ai_text,
             language=request.language,
-            voice="femi",
+            voice=selected_voice,
         )
 
         audio_content = tts_response.read()
         return StreamingResponse(io.BytesIO(audio_content), media_type="audio/wav")
     except Exception as e:
+        print(f"Chat Endpoint Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
-@app.get("/", summary="Health Check")
+@app.get("/", summary="Health Check", include_in_schema=False)
 def read_root():
-    return {"status": "ok"}
+    """A simple endpoint to confirm that the API is running."""
+    return {"status": "ok", "message": "Naija AI Assistant is running!"}
+
+
