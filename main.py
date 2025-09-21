@@ -2,33 +2,33 @@ import os
 import io
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware  # Import CORS Middleware
 from pydantic import BaseModel
 import google.generativeai as genai
-from spitch import Spitch # Assuming 'spitch' is a valid, installed library.
+from spitch import Spitch
 
 # Initialize FastAPI app
 app = FastAPI(title="Naija AI Assistant API", version="1.0.0")
 
+# --- CORS Middleware Configuration ---
+# This is the new section that fixes the error.
+# It allows your frontend (running on localhost) to make requests to your backend.
+origins = [
+    "http://localhost:8080",  # For local development
+    # Add the URL of your deployed frontend here once it's live
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
+
 # --- Configuration ---
-spitch_api_key = os.getenv("SPITCH_API_KEY")
-gemini_api_key = os.getenv("GEMINI_API_KEY")
-
-if not spitch_api_key:
-    raise RuntimeError("SPITCH_API_KEY environment variable not set.")
-if not gemini_api_key:
-    raise RuntimeError("GEMINI_API_KEY environment variable not set.")
-
-# Initialize Spitch and Gemini clients
-try:
-    spitch_client = Spitch(api_key=spitch_api_key)
-    genai.configure(api_key=gemini_api_key)
-except Exception as e:
-    raise RuntimeError(f"Failed to initialize API clients. Error: {e}")
-
-# --- Pydantic Models ---
-class TextToSpeechRequest(BaseModel):
-    text: str
-    language: str = "yo-NG"
+# Load API keys from environment variables
     voice: str = "femi"
 
 # REVERTED: The user must now specify the language in the chat request again.
@@ -114,5 +114,6 @@ async def chat(request: ChatRequest):
 def read_root():
     """A simple endpoint to confirm that the API is running."""
     return {"status": "ok", "message": "Naija AI Assistant is running!"}
+
 
 
