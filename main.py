@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-import google.generativeai as genai
+from google import genai # Corrected import statement
 from spitch import Spitch
 import io
 
