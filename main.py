@@ -47,7 +47,7 @@ except Exception as e:
 # --- Pydantic Models ---
 class TextToSpeechRequest(BaseModel):
     text: str
-    language: str = "pcm-NG"
+    language: str = "en-NG" # Changed from pcm-NG
     voice: str = "femi"
 
 class ChatRequest(BaseModel):
@@ -60,7 +60,7 @@ async def speech_to_text(file: UploadFile = File(...), language: str = "yo-NG"):
     """
     Transcribes audio to text.
     - **file**: The audio file to transcribe.
-    - **language**: The language code of the audio (e.g., 'yo-NG', 'ig-NG', 'ha-NG').
+    - **language**: The language code of the audio (e.g., 'yo-NG', 'ig-NG', 'ha-NG', 'en-NG').
     """
     if not file.content_type.startswith("audio/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload an audio file.")
@@ -110,7 +110,7 @@ async def chat(request: ChatRequest):
             "ha-NG": "hasan",
             "ig-NG": "ngozi",
         }
-        selected_voice = voice_map.get(request.language, "femi")
+        selected_voice = voice_map.get(request.language, "femi") # 'femi' will be used for Yoruba and English
 
         tts_response = spitch_client.speech.generate(
             text=ai_text,
