@@ -85,13 +85,13 @@ async def speech_to_text(file: UploadFile = File(...), language: str = "en-NG"):
 @app.post("/chat/", summary="Chat with the AI Assistant")
 async def chat(request: ChatRequest):
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         language_name = LANGUAGE_NAME_MAP.get(request.language, "English")
 
         # A much stricter prompt for the AI
         prompt = (
-            f"You are a Nigerian languages AI assistant. "
+            f"You are a Nigerian languages AI assistant. Chat freely, be jovial, be helpful, be explanatory, you don't always have to be concise, be relatable and reduce formatility, let the user be able to just come and talk to you about anything "
             f"Your ONLY job is to respond to the user's message in the specified language and nothing else. "
             f"Do not translate, do not add extra commentary, and do not use any other language in your response. "
             f"STRICTLY reply only in {language_name}.\n\n"
