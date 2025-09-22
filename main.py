@@ -14,7 +14,8 @@ app = FastAPI(title="Naija AI Assistant API", version="1.0.0")
 # --- CORS Middleware Configuration ---
 origins = [
     "http://localhost:8080",  # For local development with Vite
-    "http://localhost:3000",  # Common for other local dev servers
+    "http://localhost:3000",
+    "https://multilingual-ai-bard.vercel.app",# Common for other local dev servers
     # Add the URL of your deployed frontend here once it's live
 ]
 
