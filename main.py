@@ -15,7 +15,7 @@ app = FastAPI(title="Naija AI Assistant API", version="1.0.0")
 # It allows your frontend (running on localhost) to make requests to your backend.
 origins = [
     "http://localhost:8080",  # For local development with Vite
-    "http://localhost:3000",  # For local development with Next.js/Create React App
+    "http://localhost:3000",  # Common for other local dev servers
     # Add the URL of your deployed frontend here once it's live
 ]
 
@@ -23,7 +23,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all HTTP methods
+    allow_methods=["*"],  # Allows all HTTP methods (GET, POST, etc.)
     allow_headers=["*"],  # Allows all headers
 )
 
@@ -47,7 +47,7 @@ except Exception as e:
 # --- Pydantic Models ---
 class TextToSpeechRequest(BaseModel):
     text: str
-    language: str = "en-NG" # Changed from pcm-NG
+    language: str = "en-NG"
     voice: str = "femi"
 
 class ChatRequest(BaseModel):
