@@ -68,7 +68,7 @@ async def speech_to_text(file: UploadFile = File(...), language: str = "yo-NG"):
 @app.post("/chat/", summary="Chat with the AI Assistant")
 async def chat(request: ChatRequest):
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         # We use the full 'yo-NG' style code for the Gemini prompt
         prompt = (
