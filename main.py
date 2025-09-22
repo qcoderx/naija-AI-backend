@@ -24,7 +24,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-AI-Response-Text"],  # Expose the custom header
+    expose_headers=["X-AI-Response-Text"],
 )
 
 # --- Configuration ---
@@ -47,24 +47,39 @@ class ChatRequest(BaseModel):
     text: str
     language: str
 
-# --- Helper Function to map language codes ---
+# --- Helper Functions ---
+LANGUAGE_NAME_MAP = {
+    "yo-NG": "Yoruba",
+    "ha-NG": "Hausa",
+    "ig-NG": "Igbo",
+    "en-NG": "English",
+}
+
 def get_spitch_language_code(lang: str) -> str:
     """Converts language codes like 'yo-NG' to the 'yo' format Spitch expects."""
     return lang.split('-')[0]
 
 # --- API Endpoints ---
 @app.post("/speech-to-text/", summary="Transcribe Audio to Text")
-async def speech_to_text(file: UploadFile = File(...), language: str = "yo-NG"):
-    if not file.content_type.startswith("audio/"):
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload an audio file.")
+async def speech_to_text(file: UploadFile = File(...), language: str = "en-NG"):
+    if not file.content_type or not file.content_type.startswith("audio/"):
+        raise HTTPException(status_code=400, detail=f"Invalid or missing content type: {file.content_type}. Please upload an audio file.")
+    
     try:
         content = await file.read()
         spitch_lang = get_spitch_language_code(language)
-        response = spitch_client.speech.transcribe(content=content, language=spitch_lang)
+        
+        # Pass the content_type directly to the API call to resolve format issues
+        response = spitch_client.speech.transcribe(
+            content=content, 
+            language=spitch_lang,
+            content_type=file.content_type
+        )
         return {"text": response.text}
     except Exception as e:
         print(f"Spitch STT Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Provide a more specific error message
+        raise HTTPException(status_code=500, detail=f"Spitch API failed to process the audio file. Error: {e}")
 
 
 @app.post("/chat/", summary="Chat with the AI Assistant")
@@ -72,13 +87,19 @@ async def chat(request: ChatRequest):
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
         
+        language_name = LANGUAGE_NAME_MAP.get(request.language, "English")
+
+        # A much stricter prompt for the AI
         prompt = (
-            "You are a helpful and friendly Naija AI assistant. "
-            f"Please respond in the {request.language} language to the following message: '{request.text}'"
+            f"You are a Nigerian languages AI assistant. "
+            f"Your ONLY job is to respond to the user's message in the specified language and nothing else. "
+            f"Do not translate, do not add extra commentary, and do not use any other language in your response. "
+            f"STRICTLY reply only in {language_name}.\n\n"
+            f"User message: '{request.text}'"
         )
 
         gemini_response = await model.generate_content_async(prompt)
-        ai_text = gemini_response.text
+        ai_text = gemini_response.text.strip()
 
         voice_map = {
             "ha-NG": "hasan",
@@ -96,7 +117,6 @@ async def chat(request: ChatRequest):
 
         audio_content = tts_response.read()
         
-        # URL-encode the text and add it to a custom header
         encoded_ai_text = urllib.parse.quote(ai_text)
         response = StreamingResponse(io.BytesIO(audio_content), media_type="audio/wav")
         response.headers["X-AI-Response-Text"] = encoded_ai_text
