@@ -72,14 +72,13 @@ async def speech_to_text(file: UploadFile = File(...), language: str = "en-NG"):
         # Pass the content_type directly to the API call to resolve format issues
         response = spitch_client.speech.transcribe(
             content=content, 
-            language=spitch_lang,
-            content_type=file.content_type
+            language=spitch_lang
         )
         return {"text": response.text}
     except Exception as e:
         print(f"Spitch STT Error: {e}")
-        # Provide a more specific error message
         raise HTTPException(status_code=500, detail=f"Spitch API failed to process the audio file. Error: {e}")
+
 
 
 @app.post("/chat/", summary="Chat with the AI Assistant")
