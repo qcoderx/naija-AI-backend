@@ -1,5 +1,6 @@
 import os
 import io
+import urllib.parse
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +24,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-AI-Response-Text"],  # Expose the custom header
 )
 
 # --- Configuration ---
@@ -68,9 +70,8 @@ async def speech_to_text(file: UploadFile = File(...), language: str = "yo-NG"):
 @app.post("/chat/", summary="Chat with the AI Assistant")
 async def chat(request: ChatRequest):
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # We use the full 'yo-NG' style code for the Gemini prompt
         prompt = (
             "You are a helpful and friendly Naija AI assistant. "
             f"Please respond in the {request.language} language to the following message: '{request.text}'"
@@ -79,14 +80,12 @@ async def chat(request: ChatRequest):
         gemini_response = await model.generate_content_async(prompt)
         ai_text = gemini_response.text
 
-        # Map voices based on the full language code
         voice_map = {
             "ha-NG": "hasan",
             "ig-NG": "ngozi",
         }
         selected_voice = voice_map.get(request.language, "femi")
 
-        # Convert to the simple 'yo' style code for the Spitch API call
         spitch_lang = get_spitch_language_code(request.language)
 
         tts_response = spitch_client.speech.generate(
@@ -96,7 +95,13 @@ async def chat(request: ChatRequest):
         )
 
         audio_content = tts_response.read()
-        return StreamingResponse(io.BytesIO(audio_content), media_type="audio/wav")
+        
+        # URL-encode the text and add it to a custom header
+        encoded_ai_text = urllib.parse.quote(ai_text)
+        response = StreamingResponse(io.BytesIO(audio_content), media_type="audio/wav")
+        response.headers["X-AI-Response-Text"] = encoded_ai_text
+        
+        return response
     except Exception as e:
         print(f"Chat Endpoint Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
